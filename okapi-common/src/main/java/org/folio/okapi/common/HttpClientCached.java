@@ -237,6 +237,30 @@ public class HttpClientCached {
     return k.toString();
   }
 
+  private void reportCacheDiff(HttpClientCacheEntry l) {
+    int no = 0;
+    for (HttpClientCacheEntry e : cache.values()) {
+      if (e.cacheUri.equals(l.cacheUri) && e.method.equals(l.method)) {
+        ++no;
+        logger.info("cache miss no={}", no);
+        logger.info("{} {}", l.method, l.cacheUri);
+        for (Entry<String, String> lentry : l.requestHeaders.entries()) {
+          String lvalue = lentry.getValue();
+          String evalue = e.requestHeaders.get(lentry.getKey());
+          String op = lvalue.equals(evalue) ? "=" : "!=";
+          logger.info(" {}: {} {} {}", lentry.getKey(), lvalue, op, evalue);
+        }
+        for (Entry<String, String> eentry : e.requestHeaders.entries()) {
+          String evalue = eentry.getValue();
+          String lvalue = l.requestHeaders.get(eentry.getValue());
+          if (lvalue == null) {
+            logger.info(" {}: {}", eentry.getKey(), evalue);
+          }
+        }
+      }
+    }
+  }
+
   HttpClientCacheEntry lookup(HttpClientCacheEntry l) {
     String key = genKey(l);
     HttpClientCacheEntry e = cache.get(key);
@@ -246,6 +270,7 @@ public class HttpClientCached {
       return e;
     }
     logger.debug("lookup found no entry key={}", key);
+    reportCacheDiff(l);
     return null;
   }
 
