@@ -115,7 +115,6 @@ class HttpClientRequestCached implements HttpClientRequest {
       if (!httpClientCached.cacheStatuses().contains(ce.statusCode)) {
         store = false;
       }
-      logger.debug("saving ce={} statusCode={}", ce, ce.statusCode);
       ce.cookies = res1.cookies();
       ce.httpVersion = res1.version();
       ce.statusMessage = res1.statusMessage();
@@ -126,6 +125,7 @@ class HttpClientRequestCached implements HttpClientRequest {
       if (store) {
         ce.responseHeaders.set(XOkapiHeaders.CACHE, "MISS"); // indicate cache in use and MISS
       }
+      logger.info("saving ce={} statusCode={} store={}", ce, ce.statusCode, store);
       response = new HttpClientResponseSave(httpClientCached, res1, this, store ? ce : null);
       hndlr.handle(Future.succeededFuture(response));
     });

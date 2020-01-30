@@ -67,7 +67,7 @@ public class HttpClientCached {
   private final HttpClient httpClient;
 
   private List<HttpMethod> cacheMethods = new LinkedList<>();
-  
+
   private Set<Integer> cacheStatuses = new TreeSet<>();
 
   private final Map<String, HttpClientCacheEntry> cache = new HashMap<>();
@@ -238,27 +238,40 @@ public class HttpClientCached {
   }
 
   private void reportCacheDiff(HttpClientCacheEntry l) {
+    int noHead = 0;
+    int noGet = 0;
     int no = 0;
     for (HttpClientCacheEntry e : cache.values()) {
+      if (e.method.equals(HttpMethod.GET)) {
+        noGet++;
+      } else if (e.method.equals(HttpMethod.HEAD)) {
+        noHead++;
+      }
       if (e.cacheUri.equals(l.cacheUri) && e.method.equals(l.method)) {
         ++no;
         logger.info("cache miss no={}", no);
         logger.info("{} {}", l.method, l.cacheUri);
-        for (Entry<String, String> lentry : l.requestHeaders.entries()) {
-          String lvalue = lentry.getValue();
-          String evalue = e.requestHeaders.get(lentry.getKey());
-          String op = lvalue.equals(evalue) ? "=" : "!=";
-          logger.info(" {}: {} {} {}", lentry.getKey(), lvalue, op, evalue);
+        for (Entry<String, String> lEntry : l.requestHeaders.entries()) {
+          String key = lEntry.getKey();
+          String lValue = lEntry.getValue();
+          String eValue = e.requestHeaders.get(key);
+          if (!lValue.equals(eValue)) {
+            logger.info(" {}: {} != {}", key, lValue, eValue);
+          } else {
+            logger.info(" {}: {} ", key, lValue);
+          }
         }
-        for (Entry<String, String> eentry : e.requestHeaders.entries()) {
-          String evalue = eentry.getValue();
-          String lvalue = l.requestHeaders.get(eentry.getValue());
-          if (lvalue == null) {
-            logger.info(" {}: {}", eentry.getKey(), evalue);
+        for (Entry<String, String> eEntry : e.requestHeaders.entries()) {
+          String key = eEntry.getKey();
+          String eValue = eEntry.getValue();
+          String lValue = l.requestHeaders.get(key);
+          if (lValue == null) {
+            logger.info(" {}: {} != null", key, eValue);
           }
         }
       }
     }
+    logger.info("cache stat GET={} HEAD={}", noGet, noHead);
   }
 
   HttpClientCacheEntry lookup(HttpClientCacheEntry l) {
