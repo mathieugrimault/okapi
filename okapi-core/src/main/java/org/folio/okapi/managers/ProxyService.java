@@ -482,7 +482,7 @@ public class ProxyService {
     }
   }
 
-  private String getPath(ModuleInstance mi, RoutingContext ctx) {
+  private static String getPath(ModuleInstance mi, RoutingContext ctx) {
     String path = mi.getPath();
     String rdq = (String) ctx.data().get(REDIRECTQUERY);
     if (rdq != null) { // Parameters smuggled in from redirectProxy
@@ -492,7 +492,7 @@ public class ProxyService {
     return path;
   }
 
-  private String makeUrl(ModuleInstance mi, RoutingContext ctx) {
+  private static String makeUrl(ModuleInstance mi, RoutingContext ctx) {
     return mi.getUrl() + getPath(mi, ctx);
   }
 
@@ -611,14 +611,20 @@ public class ProxyService {
     return true;
   }
 
+  private HttpClientRequest request(RoutingContext ctx,
+    ModuleInstance mi, Handler<AsyncResult<HttpClientResponse>> hndlr) {
+    
+    String url = makeUrl(mi, ctx);
+    String cacheUrl = mi.getModuleDescriptor().getId() + getPath(mi, ctx);
+    return httpClient.requestAbs(ctx.request().method(), url, cacheUrl, hndlr);
+  }
+
   private void proxyRequestHttpClient(Iterator<ModuleInstance> it,
     ProxyContext pc, Buffer bcontent, List<HttpClientRequest> cReqs,
     ModuleInstance mi) {
 
     RoutingContext ctx = pc.getCtx();
-    String url = makeUrl(mi, ctx);
-    HttpMethod meth = ctx.request().method();
-    HttpClientRequest cReq = httpClient.requestAbs(meth, url, res1 -> {
+    HttpClientRequest cReq = request(ctx, mi, res1 -> {
       if (proxyHttpFail(pc, mi, res1)) {
         return;
       }
@@ -657,8 +663,8 @@ public class ProxyService {
     List<HttpClientRequest> cReqs, ModuleInstance mi) {
 
     RoutingContext ctx = pc.getCtx();
-    HttpClientRequest cReq = httpClient.requestAbs(ctx.request().method(),
-      makeUrl(mi, ctx), res -> logger.debug("proxyRequestLog 2"));
+    HttpClientRequest cReq = request(ctx, mi,
+      res -> logger.debug("proxyRequestLog 2"));
     cReqs.add(cReq);
     cReq.setChunked(true);
     if (!it.hasNext()) {
@@ -762,8 +768,7 @@ public class ProxyService {
 
     RoutingContext ctx = pc.getCtx();
     logger.info("proxyRequestResponse mi={}", mi.getModuleDescriptor().getId());
-    HttpClientRequest cReq = httpClient.requestAbs(ctx.request().method(),
-      makeUrl(mi, ctx), res1 -> {
+    HttpClientRequest cReq = request(ctx, mi, res1 -> {
       if (proxyHttpFail(pc, mi, res1)) {
         return;
       }
@@ -831,8 +836,7 @@ public class ProxyService {
 
     RoutingContext ctx = pc.getCtx();
     logger.info("proxyHeaders mi={}", mi.getModuleDescriptor().getId());
-    HttpClientRequest cReq = httpClient.requestAbs(ctx.request().method(),
-      makeUrl(mi, ctx), res1 -> {
+    HttpClientRequest cReq = request(ctx, mi, res1 -> {
       if (proxyHttpFail(pc, mi, res1)) {
         return;
       }
