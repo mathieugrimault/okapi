@@ -59,6 +59,7 @@ class HttpClientRequestCached implements HttpClientRequest {
     this.method = method;
     this.absoluteUri = absoluteUri;
 
+    logger.info("{} {}", method.name(), absoluteUri);
     try {
       this.url = new URL(absoluteUri);
     } catch (MalformedURLException ex) {
@@ -125,7 +126,7 @@ class HttpClientRequestCached implements HttpClientRequest {
       if (store) {
         ce.responseHeaders.set(XOkapiHeaders.CACHE, "MISS"); // indicate cache in use and MISS
       }
-      logger.info("saving ce={} statusCode={} store={}", ce, ce.statusCode, store);
+      logger.info("saving method={} ce={} statusCode={} store={}", method, ce, ce.statusCode, store);
       response = new HttpClientResponseSave(httpClientCached, res1, this, store ? ce : null);
       hndlr.handle(Future.succeededFuture(response));
     });

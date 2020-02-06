@@ -7,10 +7,12 @@ import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpClientRequest;
 import io.vertx.core.http.HttpClientResponse;
 import io.vertx.core.http.HttpMethod;
+import java.io.UnsupportedEncodingException;
 import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -20,6 +22,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.logging.Level;
 import org.apache.logging.log4j.Logger;
 
 /**
@@ -237,6 +240,34 @@ public class HttpClientCached {
     return k.toString();
   }
 
+  private void logOkapiToken(String token) {
+    int first = token.indexOf('.');
+    if (first == -1) {
+      return;
+    }
+    int second = token.indexOf('.', first+1);
+    if (second == -1) {
+      return;
+    }
+    String a1 = token.substring(0, first);
+    String a2 = token.substring(first+1, second);
+    String a3 = token.substring(second+1);
+
+    try {
+      byte[] decodedBytes = Base64.getDecoder().decode(a1);
+      logger.info("  a1:{}", new String(decodedBytes, "UTF-8"));
+    } catch (UnsupportedEncodingException ex) {
+      logger.info("  a1={}", ex.getMessage());
+    }
+    try {
+      byte[] decodedBytes = Base64.getDecoder().decode(a2);
+      logger.info("  a2:{}", new String(decodedBytes, "UTF-8"));
+    } catch (UnsupportedEncodingException ex) {
+      logger.info("  a2={}", ex.getMessage());
+    }
+    logger.info("  a3:{}", a3);
+  }
+
   private void reportCacheDiff(HttpClientCacheEntry l) {
     int noHead = 0;
     int noGet = 0;
@@ -257,6 +288,10 @@ public class HttpClientCached {
           String eValue = e.requestHeaders.get(key);
           if (!lValue.equals(eValue)) {
             logger.info(" {}: {} != {}", key, lValue, eValue);
+            if (key.equals(XOkapiHeaders.TOKEN)) {
+              logOkapiToken(lValue);
+              logOkapiToken(eValue);
+            }
           } else {
             logger.info(" {}: {} ", key, lValue);
           }

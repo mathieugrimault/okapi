@@ -761,6 +761,7 @@ public class ProxyService {
     List<HttpClientRequest> cReqs, ModuleInstance mi) {
 
     RoutingContext ctx = pc.getCtx();
+    logger.info("proxyRequestResponse mi={}", mi.getModuleDescriptor().getId());
     HttpClientRequest cReq = httpClient.requestAbs(ctx.request().method(),
       makeUrl(mi, ctx), res1 -> {
       if (proxyHttpFail(pc, mi, res1)) {
@@ -829,6 +830,7 @@ public class ProxyService {
     List<HttpClientRequest> cReqs, ModuleInstance mi) {
 
     RoutingContext ctx = pc.getCtx();
+    logger.info("proxyHeaders mi={}", mi.getModuleDescriptor().getId());
     HttpClientRequest cReq = httpClient.requestAbs(ctx.request().method(),
       makeUrl(mi, ctx), res1 -> {
       if (proxyHttpFail(pc, mi, res1)) {
@@ -953,7 +955,7 @@ public class ProxyService {
       // Do proxy work
       ProxyType pType = mi.getRoutingEntry().getProxyType();
       if (pType != ProxyType.REDIRECT) {
-        pc.debug("Invoking module " + mi.getModuleDescriptor().getId()
+        pc.trace("Invoking module " + mi.getModuleDescriptor().getId()
           + " type " + pType
           + " level " + mi.getRoutingEntry().getPhaseLevel()
           + " path " + mi.getPath()
