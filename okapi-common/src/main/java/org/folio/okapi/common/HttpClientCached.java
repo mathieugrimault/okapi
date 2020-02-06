@@ -241,6 +241,9 @@ public class HttpClientCached {
   }
 
   private void logOkapiToken(String token) {
+    if (token == null) {
+      return;
+    }
     int first = token.indexOf('.');
     if (first == -1) {
       return;
@@ -253,12 +256,7 @@ public class HttpClientCached {
     String a2 = token.substring(first+1, second);
     String a3 = token.substring(second+1);
 
-    try {
-      byte[] decodedBytes = Base64.getDecoder().decode(a1);
-      logger.info("  a1:{}", new String(decodedBytes, "UTF-8"));
-    } catch (UnsupportedEncodingException ex) {
-      logger.info("  a1={}", ex.getMessage());
-    }
+    logger.info("  a1:{}", a1);
     try {
       byte[] decodedBytes = Base64.getDecoder().decode(a2);
       logger.info("  a2:{}", new String(decodedBytes, "UTF-8"));
