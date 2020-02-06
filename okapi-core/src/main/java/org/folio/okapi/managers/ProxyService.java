@@ -615,7 +615,12 @@ public class ProxyService {
     ModuleInstance mi, Handler<AsyncResult<HttpClientResponse>> hndlr) {
     
     String url = makeUrl(mi, ctx);
-    String cacheUrl = mi.getModuleDescriptor().getId() + getPath(mi, ctx);
+    String cacheUrl;
+    if (XOkapiHeaders.FILTER_AUTH.equals(mi.getRoutingEntry().getPhase())) {
+      cacheUrl = mi.getModuleDescriptor().getId() + "/";
+    } else {
+      cacheUrl = mi.getModuleDescriptor().getId() + getPath(mi, ctx);
+    }
     return httpClient.requestAbs(ctx.request().method(), url, cacheUrl, hndlr);
   }
 
