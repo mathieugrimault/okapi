@@ -390,7 +390,7 @@ public class TenantManager {
                                    ProxyContext pc, Handler<ExtendedAsyncResult<Void>> fut) {
 
     if (!options.getInvoke()) {
-      fut.handle(new Success<>());
+      fut.handle(new Success<>()); // skip: purge, tenant POST, permissions loading
       return;
     }
     JsonObject jo = new JsonObject();
