@@ -4,9 +4,15 @@ import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClient;
+import io.vertx.core.http.HttpClientOptions;
 import io.vertx.core.http.HttpClientRequest;
 import io.vertx.core.http.HttpClientResponse;
 import io.vertx.core.json.Json;
+import io.vertx.core.net.ProxyOptions;
+import io.vertx.ext.web.client.HttpResponse;
+import io.vertx.ext.web.client.WebClient;
+import io.vertx.ext.web.client.WebClientOptions;
+import io.vertx.ext.web.client.predicate.ResponsePredicate;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
@@ -28,12 +34,23 @@ import org.folio.okapi.common.Success;
 public class PullManager {
 
   private final Logger logger = OkapiLogger.get();
-  private final HttpClient httpClient;
+  private final WebClient webClient;
   private final ModuleManager moduleManager;
   private final Messages messages = Messages.getInstance();
 
+  /**
+   * Construct Pull Manager.
+   * @param vertx Vertx
+   * @param moduleManager Module Manager
+   */
   public PullManager(Vertx vertx, ModuleManager moduleManager) {
-    this.httpClient = vertx.createHttpClient();
+    this.webClient = WebClient.create(vertx,
+      new WebClientOptions(
+        new HttpClientOptions().setProxyOptions(
+          new ProxyOptions().setHost("cache.univ-nantes.fr")
+        )
+      )
+    );
     this.moduleManager = moduleManager;
   }
 
@@ -50,34 +67,23 @@ public class PullManager {
     }
     url += "_/version";
     final Buffer body = Buffer.buffer();
-    HttpClientRequest req = httpClient.getAbs(url, res1 -> {
-      if (res1.failed()) {
-        logger.warn("pull for {} failed: {}", baseUrl,
-            res1.cause().getMessage(), res1.cause());
-        getRemoteUrl(it, fut);
-        return;
-      }
-      HttpClientResponse res = res1.result();
-      res.handler(body::appendBuffer);
-      res.endHandler(x -> {
-        if (res.statusCode() != 200) {
-          logger.warn("pull for {} failed with status {}",
-              baseUrl, res.statusCode());
-          fut.handle(new Failure<>(ErrorType.USER,
-              "pull for " + baseUrl + " returned status "
-                  + res.statusCode() + "\n" + body.toString()));
-        } else {
-          List<String> result = new LinkedList<>();
-          result.add(baseUrl);
-          result.add(body.toString());
-          fut.handle(new Success<>(result));
-        }
-      });
-      res.exceptionHandler(x
-          -> fut.handle(new Failure<>(ErrorType.INTERNAL, x.getMessage()))
-      );
-    });
-    req.end();
+    webClient.getAbs(url)
+        .expect(ResponsePredicate.status(200, 202))
+        .send(res1 -> {
+          if (res1.succeeded()) {
+            HttpResponse<io.vertx.core.buffer.Buffer> res = res1.result();
+            List<String> result = new LinkedList<>();
+            result.add(baseUrl);
+            result.add(body.toString());
+            fut.handle(new Success<>(result));
+          } else {
+            logger.warn("pull for {} failed: {}", baseUrl,
+                res1.cause().getMessage(), res1.cause());
+            getRemoteUrl(it, fut);
+            // fut.handle(new Failure<>(ErrorType.INTERNAL, res1.cause().getMessage())); ???
+            return;
+          }
+        });
   }
 
   private void getList(String urlBase,
@@ -91,26 +97,21 @@ public class PullManager {
     if (skipList != null) {
       url += "?full=true";
     }
-    final Buffer body = Buffer.buffer();
-    HttpClientRequest req = httpClient.getAbs(url, res1 -> {
-      if (res1.failed()) {
-        fut.handle(new Failure<>(ErrorType.INTERNAL, res1.cause().getMessage()));
-        return;
-      }
-      HttpClientResponse res = res1.result();
-      res.handler(body::appendBuffer);
-      res.endHandler(x -> {
-        if (res.statusCode() != 200) {
-          fut.handle(new Failure<>(ErrorType.USER, body.toString()));
-          return;
-        }
-        ModuleDescriptor[] ml = Json.decodeValue(body.toString(),
-            ModuleDescriptor[].class);
-        fut.handle(new Success<>(ml));
-      });
-      res.exceptionHandler(x
-          -> fut.handle(new Failure<>(ErrorType.INTERNAL, x.getMessage())));
-    });
+
+    webClient.getAbs(url)
+        .expect(ResponsePredicate.status(200, 202))
+        .expect(ResponsePredicate.JSON)
+        .send(res1 -> {
+          if (res1.succeeded()) {
+            HttpResponse<io.vertx.core.buffer.Buffer> res  = res1.result();
+            ModuleDescriptor[] ml = res.bodyAsJson(ModuleDescriptor[].class);
+            fut.handle(new Success<>(ml));
+          } else {
+            fut.handle(new Failure<>(ErrorType.INTERNAL, res1.cause().getMessage()));
+            return;
+          }
+        });
+
     if (skipList != null) {
       String[] idList = new String[skipList.size()];
       int i = 0;
@@ -118,9 +119,7 @@ public class PullManager {
         idList[i] = md.getId();
         i++;
       }
-      req.end(Json.encodePrettily(idList));
-    } else {
-      req.end();
+      Json.encodePrettily(idList);
     }
   }
 
