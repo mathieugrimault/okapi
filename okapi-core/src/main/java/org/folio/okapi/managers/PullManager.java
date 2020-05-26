@@ -47,7 +47,7 @@ public class PullManager {
     this.webClient = WebClient.create(vertx,
       new WebClientOptions(
         new HttpClientOptions().setProxyOptions(
-          new ProxyOptions().setHost("cache.univ-nantes.fr")
+          new ProxyOptions().setHost(System.getProperty("proxyHost"))
         )
       )
     );
